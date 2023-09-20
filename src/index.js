@@ -1,11 +1,11 @@
 // eslint-disable-next-line
 import vision from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
-// import * as fs from 'fs';
-// import * as path from 'path';
-// import { bundleResourceIO } from '@tensorflow/tfjs-core';
-import { bundleResourceIO } from "@tensorflow/tfjs";
 
 import * as tf from '@tensorflow/tfjs';
+// const fs = require("fs");
+// const { PDFDocument, rgb } = require("pdf-lib");
+
+// import {PDFDocument, rgb} from "pdf-lib";
 const { FaceLandmarker, FilesetResolver } = vision;
 const demosSection = document.getElementById("demos");
 const videoBlendShapes = document.getElementById("video-blend-shapes");
@@ -16,14 +16,13 @@ let enableWebcamButton;
 let webcamRunning = false;
 const videoWidth = 480;
 
+const classFrequencies = [0, 0, 0, 0, 0, 0, 0, 0];
+
 // Add a global variable to store the blendshapes data
 let blendShapesData = [];
 
 const model = await tf.loadLayersModel('https://model-facelandmark.s3.us-west-2.amazonaws.com/model.json');
-
-// const modelURL = "https://drive.google.com/file/d/1-40-dnPLQQRlf0eU7wzqmrua8Vp2yaJO/view?usp=drive_link";
-// const model = await tf.loadLayersModel(modelURL);
-
+console.log("Success");
 
 async function createFaceLandmarker() {
   const filesetResolver = await FilesetResolver.forVisionTasks(
@@ -57,6 +56,27 @@ if (hasGetUserMedia()) {
   console.warn("getUserMedia() is not supported by your browser");
 }
 
+// to save the classFrequencies as json file
+// Function to save class frequencies as a JSON file
+function saveClassFrequenciesAsJSON() {
+  const classLabels = ["Angry", "Contempt", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"];
+  const classFrequenciesWithLabels = {};
+
+  for (let i = 0; i < classLabels.length; i++) {
+    const label = classLabels[i];
+    classFrequenciesWithLabels[label] = classFrequencies[i];
+  }
+
+  const jsonData = JSON.stringify(classFrequenciesWithLabels, null, 2);
+  const blob = new Blob([jsonData], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "class_frequencies.json";
+  a.click();
+}
+
 function enableCam(event) {
   if (!faceLandmarker) {
     console.log("Wait! faceLandmarker not loaded yet.");
@@ -77,19 +97,21 @@ function enableCam(event) {
     enableWebcamButton.innerText = "ENABLE PREDICTIONS";
 
     // Save the blendShapesData as a JSON file
-    if (blendShapesData.length > 0) {
-      const jsonData = JSON.stringify(blendShapesData, null, 2);
-      const blob = new Blob([jsonData], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
+    // Save the blendShapesData as a JSON file
+if (blendShapesData.length > 0) {
+  console.log(classFrequencies);
+  const jsonData = JSON.stringify(blendShapesData, null, 2);
+  const blob = new Blob([jsonData], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
 
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "blendshapes_data.json";
-      a.click();
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "blendshapes_data.json";
+  a.click();
 
-      // Optionally, you can reset the blendShapesData array after saving
-      blendShapesData = [];
-    }
+  saveClassFrequenciesAsJSON();
+
+}
   } else {
     webcamRunning = true;
     enableWebcamButton.innerText = "DISABLE PREDICTIONS";
@@ -128,6 +150,26 @@ async function predictWebcam() {
   }
   // to push the blendshapes data into the array
   if (results.faceBlendshapes) {
+    // console.log(results.faceBlendshapes[0]);
+    
+    let scores = [];
+    const inputJSON = results.faceBlendshapes[0];
+    // console.log(inputJSON);
+    if(inputJSON){
+    const categoryScores = inputJSON.categories.map(category => category.score);
+    // console.log(categoryScores);
+    scores = categoryScores;
+  }
+    if(scores.length!==0){
+      const input = tf.tensor(scores, [1,52]);
+      const output = model.predict(input);
+      const softmax = tf.softmax(output);
+      const probabilities = softmax.arraySync()[0];
+      const maxProbabilityIndex = probabilities.indexOf(Math.max(...probabilities));
+      classFrequencies[maxProbabilityIndex]++;
+      console.log(maxProbabilityIndex);
+      // console.log(softmax);
+    }
     blendShapesData.push(results.faceBlendshapes);
   }
 
@@ -163,6 +205,3 @@ function drawBlendShapes(el, blendShapes) {
 
   el.innerHTML = htmlMaker;
 }
-
-
-
