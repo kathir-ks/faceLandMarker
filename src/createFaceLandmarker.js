@@ -40,6 +40,9 @@ createFaceLandmarker();
 
 const video = document.getElementById("webcam");
 
+video.style.width = "0px";
+video.style.height = "0px";
+
 const canvasElement = document.getElementById("output_canvas");
 
 function hasGetUserMedia() {
