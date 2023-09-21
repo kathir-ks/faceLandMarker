@@ -13,6 +13,27 @@ let enableWebcamButton;
 let webcamRunning = false;
 const videoWidth = 480;
 
+const numRows = 52; // 52 rows
+const numCols = 10; // 10 columns
+
+// Initialize the 2D array with zeros
+const twoDArray = Array.from({ length: numRows }, () => Array(numCols).fill(0));
+
+// Score ranges
+const ranges = [
+  { min: 0.0, max: 0.1 },
+  { min: 0.1, max: 0.2 },
+  { min: 0.2, max: 0.3 },
+  { min: 0.3, max: 0.4 },
+  { min: 0.4, max: 0.5 },
+  { min: 0.5, max: 0.6 },
+  { min: 0.6, max: 0.7 },
+  { min: 0.7, max: 0.8 },
+  { min: 0.8, max: 0.9 },
+  { min: 0.9, max: 1.0 }
+];
+
+
 const classFrequencies = [0, 0, 0, 0, 0, 0, 0, 0];
 
 // Add a global variable to store the blendshapes data
@@ -169,6 +190,18 @@ async function predictWebcam() {
       classFrequencies[maxProbabilityIndex]++;
       console.log(maxProbabilityIndex);
       // console.log(softmax);
+
+      for (let i = 0; i < scores.length; i++) {
+        const score = scores[i];
+        // Find the range to which the score belongs
+        const rangeIndex = ranges.findIndex(range => score >= range.min && score <= range.max);
+      
+        if (rangeIndex !== -1) {
+          // Increment the corresponding cell in the 2D array
+          twoDArray[i][rangeIndex]++;
+        }
+      }
+      console.log(twoDArray);
     }
     blendShapesData.push(results.faceBlendshapes);
   }
